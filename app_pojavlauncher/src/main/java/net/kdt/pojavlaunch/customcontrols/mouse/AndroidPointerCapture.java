@@ -53,6 +53,13 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
         // Read from relative axis directly to work around.
         float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
         float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+
+        // Check for coordinate system mismatch
+        if (isCoordinateSystemMismatched()) {
+            relX = swapCoordinates(relX);
+            relY = swapCoordinates(relY);
+        }
+
         if(!CallbackBridge.isGrabbing()) {
             enableTouchpadIfNecessary();
             // Yes, if the user's touchpad is multi-touch we will also receive events for that.
