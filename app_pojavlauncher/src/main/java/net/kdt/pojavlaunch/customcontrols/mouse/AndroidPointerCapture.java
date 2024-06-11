@@ -54,8 +54,8 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
         float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
         float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
 
-        // Potential modification to address swapping (replace with your specific logic)
-        if (/* condition to check for swapping */) {
+        // Check for axis inversion (replace with your logic)
+        if (isAxisInverted()) {
             float temp = relX;
             relX = relY;
             relY = temp;
@@ -98,8 +98,9 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
         }
     }
 
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
-        if (hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
+        if(hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
     }
 
     public void detach() {
