@@ -52,8 +52,8 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
         boolean isGrabbing = CallbackBridge.isGrabbing();
         if (!isGrabbing) {
             enableTouchpadIfNecessary();
-            float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-            float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+            float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X); // Read from MotionEvent
+            float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y); // Read from MotionEvent
             if (event.getPointerCount() < 2) {
                 mTouchpad.applyMotionVector(relX, relY);
                 if (mScroller != null) { // Optional
