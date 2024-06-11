@@ -16,31 +16,31 @@ import org.lwjgl.glfw.CallbackBridge;
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChangeListener, View.OnCapturedPointerListener {
     private static final float TOUCHPAD_SCROLL_THRESHOLD = 1;
-    private final float mTouchpadScale; // Pre-calculated scaling factor
     private final AbstractTouchpad mTouchpad;
     private final View mHostView;
-    private final Scroller mScroller; // Optional, remove if not essential
+    private final float mScaleFactor;
+    private final float mMousePrescale = Tools.dpToPx(1);
+    private final Scroller mScroller = new Scroller(TOUCHPAD_SCROLL_THRESHOLD);
 
     public AndroidPointerCapture(AbstractTouchpad touchpad, View hostView, float scaleFactor) {
-        this.mTouchpadScale = scaleFactor * scaleFactor; // Pre-calculate
+        this.mScaleFactor = scaleFactor;
         this.mTouchpad = touchpad;
         this.mHostView = hostView;
-        mHostView.setOnCapturedPointerListener(this);
-        mHostView.getViewTreeObserver().addOnWindowFocusChangeListener(this);
-        mScroller = new Scroller(TOUCHPAD_SCROLL_THRESHOLD); // Optional
+        hostView.setOnCapturedPointerListener(this);
+        hostView.getViewTreeObserver().addOnWindowFocusChangeListener(this);
     }
 
     private void enableTouchpadIfNecessary() {
-        if (!mTouchpad.getDisplayState()) mTouchpad.enable(true);
+        if(!mTouchpad.getDisplayState()) mTouchpad.enable(true);
     }
 
     public void handleAutomaticCapture() {
-        if (!CallbackBridge.isGrabbing()) return;
-        if (mHostView.hasPointerCapture()) {
+        if(!CallbackBridge.isGrabbing()) return;
+        if(mHostView.hasPointerCapture()) {
             enableTouchpadIfNecessary();
             return;
         }
-        if (!mHostView.hasWindowFocus()) {
+        if(!mHostView.hasWindowFocus()) {
             mHostView.requestFocus();
         } else {
             mHostView.requestPointerCapture();
@@ -49,24 +49,34 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        boolean isGrabbing = CallbackBridge.isGrabbing();
-        if (!isGrabbing) {
+        // Yes, we actually not only receive relative mouse events here, but also absolute touchpad ones!
+        // Read from relative axis directly to work around.
+        float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+
+        // Potential modification to address swapping (replace with your specific logic)
+        if (/* condition to check for swapping */) {
+            float temp = relX;
+            relX = relY;
+            relY = temp;
+        }
+
+        if(!CallbackBridge.isGrabbing()) {
             enableTouchpadIfNecessary();
-            float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X); // Read from MotionEvent
-            float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y); // Read from MotionEvent
-            if (event.getPointerCount() < 2) {
+            // Yes, if the user's touchpad is multi-touch we will also receive events for that.
+            // So, handle the scrolling gesture ourselves.
+            relX *= mMousePrescale;
+            relY *= mMousePrescale;
+            if(event.getPointerCount() < 2) {
                 mTouchpad.applyMotionVector(relX, relY);
-                if (mScroller != null) { // Optional
-                    mScroller.resetScrollOvershoot();
-                }
+                mScroller.resetScrollOvershoot();
             } else {
-                if (mScroller != null) { // Optional
-                    mScroller.performScroll(relX, relY);
-                }
+                mScroller.performScroll(relX, relY);
             }
         } else {
-            CallbackBridge.mouseX += relX * mTouchpadScale;
-            CallbackBridge.mouseY += relY * mTouchpadScale;
+            // Position is updated by many events, hence it is send regardless of the event value
+            CallbackBridge.mouseX += (relX * mScaleFactor);
+            CallbackBridge.mouseY += (relY * mScaleFactor);
             CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
         }
 
@@ -88,7 +98,6 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
         }
     }
 
-    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         if (hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
     }
