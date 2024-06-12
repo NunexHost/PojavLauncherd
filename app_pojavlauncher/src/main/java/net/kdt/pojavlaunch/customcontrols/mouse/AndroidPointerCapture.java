@@ -49,16 +49,15 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        // Read from relative axis directly
-        float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-
-        // Invert Y axis for touchpads
-        if(!CallbackBridge.isGrabbing()) relY = -relY; 
+        // Yes, we actually not only receive relative mouse events here, but also absolute touchpad ones!
+        // Read from relative axis directly to work around.
+        float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X); // Swap axis values here
 
         if(!CallbackBridge.isGrabbing()) {
             enableTouchpadIfNecessary();
-            // Handle scrolling and touchpad motion
+            // Yes, if the user's touchpad is multi-touch we will also receive events for that.
+            // So, handle the scrolling gesture ourselves.
             relX *= mMousePrescale;
             relY *= mMousePrescale;
             if(event.getPointerCount() < 2) {
@@ -68,9 +67,9 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
                 mScroller.performScroll(relX, relY);
             }
         } else {
-            // Update mouse position with inverted Y for grabbed cursor
+            // Position is updated by many events, hence it is send regardless of the event value
             CallbackBridge.mouseX += (relX * mScaleFactor);
-            CallbackBridge.mouseY += (-relY * mScaleFactor);
+            CallbackBridge.mouseY += (relY * mScaleFactor);
             CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
         }
 
