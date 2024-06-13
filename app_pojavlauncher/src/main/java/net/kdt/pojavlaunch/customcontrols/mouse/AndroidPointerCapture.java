@@ -1,7 +1,6 @@
 package net.kdt.pojavlaunch.customcontrols.mouse;
 
 import android.os.Build;
-import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
@@ -32,16 +31,16 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
     }
 
     private void enableTouchpadIfNecessary() {
-        if (!mTouchpad.getDisplayState()) mTouchpad.enable(true);
+        if(!mTouchpad.getDisplayState()) mTouchpad.enable(true);
     }
 
     public void handleAutomaticCapture() {
-        if (!CallbackBridge.isGrabbing()) return;
-        if (mHostView.hasPointerCapture()) {
+        if(!CallbackBridge.isGrabbing()) return;
+        if(mHostView.hasPointerCapture()) {
             enableTouchpadIfNecessary();
             return;
         }
-        if (!mHostView.hasWindowFocus()) {
+        if(!mHostView.hasWindowFocus()) {
             mHostView.requestFocus();
         } else {
             mHostView.requestPointerCapture();
@@ -50,28 +49,32 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        if (event.isFromSource(InputDevice.SOURCE_TOUCHSCREEN)) {
-            handleTouchEvent(event);
-        } else if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
-            handleMouseEvent(event);
-        }
-        return true;
-    }
+        float relX, relY;
 
-    private void handleTouchEvent(MotionEvent event) {
-        float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        // Differentiate between touchpad and mouse input
         if (!CallbackBridge.isGrabbing()) {
+            // Touchpad input: Direct axis values
+            relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+            relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        } else {
+            // Mouse input: Indirect axis values (converted from events)
+            relX = (event.getX() - mHostView.getX()) * mScaleFactor;
+            relY = (event.getY() - mHostView.getY()) * mScaleFactor;
+        }
+
+        if(!CallbackBridge.isGrabbing()) {
             enableTouchpadIfNecessary();
+            // Touchpad scrolling
             relX *= mMousePrescale;
             relY *= mMousePrescale;
-            if (event.getPointerCount() < 2) {
+            if(event.getPointerCount() < 2) {
                 mTouchpad.applyMotionVector(relX, relY);
                 mScroller.resetScrollOvershoot();
             } else {
                 mScroller.performScroll(relX, relY);
             }
         } else {
+            // Mouse position updates
             CallbackBridge.mouseX += (relX * mScaleFactor);
             CallbackBridge.mouseY += (relY * mScaleFactor);
             CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
@@ -95,18 +98,9 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
         }
     }
 
-    private void handleMouseEvent(MotionEvent event) {
-        float relX = event.getX();
-        float relY = event.getY();
-        CallbackBridge.mouseX += (relX * mScaleFactor);
-        CallbackBridge.mouseY += (relY * mScaleFactor);
-        CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
-        // Handle mouse-specific actions here if needed
-    }
-
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
-        if (hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
+        if(hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
     }
 
     public void detach() {
