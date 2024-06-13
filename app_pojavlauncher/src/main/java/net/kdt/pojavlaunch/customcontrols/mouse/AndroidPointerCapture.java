@@ -19,8 +19,12 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
     private final AbstractTouchpad mTouchpad;
     private final View mHostView;
     private final float mScaleFactor;
-    private final float mMousePrescale = Tools.dpToPx(1); // Precalculated constant
+    private final float mMousePrescale = Tools.dpToPx(1);
     private final Scroller mScroller = new Scroller(TOUCHPAD_SCROLL_THRESHOLD);
+
+    // Variables to store previous touch position
+    private float prevX = 0;
+    private float prevY = 0;
 
     public AndroidPointerCapture(AbstractTouchpad touchpad, View hostView, float scaleFactor) {
         this.mScaleFactor = scaleFactor;
@@ -31,16 +35,16 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
     }
 
     private void enableTouchpadIfNecessary() {
-        if(!mTouchpad.getDisplayState()) mTouchpad.enable(true);
+        if (!mTouchpad.getDisplayState()) mTouchpad.enable(true);
     }
 
     public void handleAutomaticCapture() {
-        if(!CallbackBridge.isGrabbing()) return;
-        if(mHostView.hasPointerCapture()) {
+        if (!CallbackBridge.isGrabbing()) return;
+        if (mHostView.hasPointerCapture()) {
             enableTouchpadIfNecessary();
             return;
         }
-        if(!mHostView.hasWindowFocus()) {
+        if (!mHostView.hasWindowFocus()) {
             mHostView.requestFocus();
         } else {
             mHostView.requestPointerCapture();
@@ -49,20 +53,31 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
+        // Calculate displacement (delta) instead of using AXIS_RELATIVE_X/Y
+        float curX = event.getX();
+        float curY = event.getY();
+        float deltaX = curX - prevX;
+        float deltaY = curY - prevY;
+
+        // Update previous position for next event
+        prevX = curX;
+        prevY = curY;
 
         if (!CallbackBridge.isGrabbing()) {
             enableTouchpadIfNecessary();
-            if (event.getPointerCount() < 2 && (Math.abs(relX) > 0.001f || Math.abs(relY) > 0.001f)) {
-                mTouchpad.applyMotionVector(relX, relY);
+            // Handle scrolling gesture
+            deltaX *= mMousePrescale;
+            deltaY *= mMousePrescale;
+            if (event.getPointerCount() < 2) {
+                mTouchpad.applyMotionVector(deltaX, deltaY);
                 mScroller.resetScrollOvershoot();
             } else {
-                mScroller.performScroll(relX, relY);
+                mScroller.performScroll(deltaX, deltaY);
             }
         } else {
-            CallbackBridge.mouseX += (relX * mScaleFactor);
-            CallbackBridge.mouseY += (relY * mScaleFactor);
+            // Update cursor position with displacement and scaling
+            CallbackBridge.mouseX += (deltaX * mScaleFactor);
+            CallbackBridge.mouseY += (deltaY * mScaleFactor);
             CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
         }
 
@@ -86,7 +101,7 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
-        if(hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
+        if (hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
     }
 
     public void detach() {
