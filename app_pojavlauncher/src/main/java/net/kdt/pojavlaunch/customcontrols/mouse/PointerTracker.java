@@ -32,8 +32,8 @@ public class PointerTracker {
         float trackedY = motionEvent.getX(trackedPointerIndex);
         mMotionVector[0] = trackedX - mLastY;
         mMotionVector[1] = trackedY - mLastX;
-        mLastX = trackedY;
-        mLastY = trackedX;
+        mLastX = trackedX;
+        mLastY = trackedY;
         return trackedPointerIndex;
     }
 
