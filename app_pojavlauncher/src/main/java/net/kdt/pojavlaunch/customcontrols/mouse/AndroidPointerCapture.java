@@ -21,8 +21,7 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
     private final float mScaleFactor;
     private final float mMousePrescale = Tools.dpToPx(1);
     private final Scroller mScroller = new Scroller(TOUCHPAD_SCROLL_THRESHOLD);
-    private float mTouchpadX = 0;
-    private float mTouchpadY = 0;
+    private boolean isMouseConnected = false; // Flag to track mouse connection
 
     public AndroidPointerCapture(AbstractTouchpad touchpad, View hostView, float scaleFactor) {
         this.mScaleFactor = scaleFactor;
@@ -51,53 +50,57 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        float rawX = event.getRawX();
-        float rawY = event.getRawY();
-        float x = rawX - mHostView.getLeft();
-        float y = rawY - mHostView.getTop();
+        float relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
+        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
 
-        // Differentiate between touchpad and mouse input
-        if(!CallbackBridge.isGrabbing()) {
-            enableTouchpadIfNecessary();
+        if (isMouseConnected) { // Mouse connected behavior
+            CallbackBridge.mouseX += (relX * mScaleFactor);
+            CallbackBridge.mouseY += (relY * mScaleFactor);
+            CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
 
-            // Touchpad input
-            float relX = x - mTouchpadX;
-            float relY = y - mTouchpadY;
-
-            mTouchpadX = x;
-            mTouchpadY = y;
-
-            // Apply motion vector to touchpad
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_MOVE:
+                    return true;
+                case MotionEvent.ACTION_BUTTON_PRESS:
+                    return MinecraftGLSurface.sendMouseButtonUnconverted(event.getActionButton(), true);
+                case MotionEvent.ACTION_BUTTON_RELEASE:
+                    return MinecraftGLSurface.sendMouseButtonUnconverted(event.getActionButton(), false);
+                case MotionEvent.ACTION_SCROLL:
+                    CallbackBridge.sendScroll(
+                            event.getAxisValue(MotionEvent.AXIS_HSCROLL),
+                            event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+                    );
+                    return true;
+                default:
+                    return false;
+            }
+        } else { // Touchscreen behavior
             relX *= mMousePrescale;
             relY *= mMousePrescale;
+
             if(event.getPointerCount() < 2) {
                 mTouchpad.applyMotionVector(relX, relY);
                 mScroller.resetScrollOvershoot();
             } else {
                 mScroller.performScroll(relX, relY);
             }
-        } else {
-            // Mouse input (OTG mouse)
-            CallbackBridge.mouseX += (x * mScaleFactor);
-            CallbackBridge.mouseY += (y * mScaleFactor);
-            CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
-        }
 
-        switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_MOVE:
-                return true;
-            case MotionEvent.ACTION_BUTTON_PRESS:
-                return MinecraftGLSurface.sendMouseButtonUnconverted(event.getActionButton(), true);
-            case MotionEvent.ACTION_BUTTON_RELEASE:
-                return MinecraftGLSurface.sendMouseButtonUnconverted(event.getActionButton(), false);
-            case MotionEvent.ACTION_SCROLL:
-                CallbackBridge.sendScroll(
-                        event.getAxisValue(MotionEvent.AXIS_HSCROLL),
-                        event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-                );
-                return true;
-            default:
-                return false;
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_MOVE:
+                    return true;
+                case MotionEvent.ACTION_BUTTON_PRESS:
+                    return MinecraftGLSurface.sendMouseButtonUnconverted(event.getActionButton(), true);
+                case MotionEvent.ACTION_BUTTON_RELEASE:
+                    return MinecraftGLSurface.sendMouseButtonUnconverted(event.getActionButton(), false);
+                case MotionEvent.ACTION_SCROLL:
+                    CallbackBridge.sendScroll(
+                            event.getAxisValue(MotionEvent.AXIS_HSCROLL),
+                            event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+                    );
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 
@@ -105,7 +108,7 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
     public void onWindowFocusChanged(boolean hasFocus) {
         if(hasFocus && MainActivity.isAndroid8OrHigher()) mHostView.requestPointerCapture();
     }
-
+    
     public void detach() {
         mHostView.setOnCapturedPointerListener(null);
         mHostView.getViewTreeObserver().removeOnWindowFocusChangeListener(this);
