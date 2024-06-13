@@ -49,27 +49,27 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        // Yes, we actually not only receive relative mouse events here, but also absolute touchpad ones!
-        // Read from relative axis directly to work around.
-        float invertedRelX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y); // Swapped axis values here
-        float relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X) * -1; // Inverted X-axis movement
+        float relX, relY;
 
-        if(!CallbackBridge.isGrabbing()) {
+        if (!CallbackBridge.isGrabbing()) { // Touchpad input
             enableTouchpadIfNecessary();
-            // Yes, if the user's touchpad is multi-touch we will also receive events for that.
-            // So, handle the scrolling gesture ourselves.
-            invertedRelX *= mMousePrescale;
-            relY *= mMousePrescale;
-            if(event.getPointerCount() < 2) {
-                mTouchpad.applyMotionVector(invertedRelX, relY);
+
+            // Handle scrolling gesture
+            relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X) * mMousePrescale;
+            relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y) * mMousePrescale;
+            if (event.getPointerCount() < 2) {
+                mTouchpad.applyMotionVector(relX, relY);
                 mScroller.resetScrollOvershoot();
             } else {
-                mScroller.performScroll(invertedRelX, relY);
+                mScroller.performScroll(relX, relY);
             }
-        } else {
-            // Position is updated by many events, hence it is send regardless of the event value
-            CallbackBridge.mouseX += (relY * mScaleFactor);
-            CallbackBridge.mouseY -= (invertedRelX * mScaleFactor);
+        } else { // Mouse input
+            relX = event.getX() - event.getXPrecision();
+            relY = event.getY() - event.getYPrecision();
+
+            // Update cursor position
+            CallbackBridge.mouseX += (relX * mScaleFactor);
+            CallbackBridge.mouseY += (relY * mScaleFactor);
             CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
         }
 
