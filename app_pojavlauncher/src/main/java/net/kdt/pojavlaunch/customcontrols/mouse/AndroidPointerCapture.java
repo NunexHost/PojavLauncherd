@@ -21,6 +21,8 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
     private final float mScaleFactor;
     private final float mMousePrescale = Tools.dpToPx(1);
     private final Scroller mScroller = new Scroller(TOUCHPAD_SCROLL_THRESHOLD);
+    private float mTouchpadX = 0;
+    private float mTouchpadY = 0;
 
     public AndroidPointerCapture(AbstractTouchpad touchpad, View hostView, float scaleFactor) {
         this.mScaleFactor = scaleFactor;
@@ -49,17 +51,23 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
 
     @Override
     public boolean onCapturedPointer(View view, MotionEvent event) {
-        float relX, relY;
+        float rawX = event.getRawX();
+        float rawY = event.getRawY();
+        float x = rawX - mHostView.getLeft();
+        float y = rawY - mHostView.getTop();
 
-        // Differentiate between touchpad and mouse events
-        if (!CallbackBridge.isGrabbing()) {
-            // Touchpad input
-            relX = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X);
-            relY = event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y);
-
+        // Differentiate between touchpad and mouse input
+        if(!CallbackBridge.isGrabbing()) {
             enableTouchpadIfNecessary();
 
-            // Handle scrolling gesture
+            // Touchpad input
+            float relX = x - mTouchpadX;
+            float relY = y - mTouchpadY;
+
+            mTouchpadX = x;
+            mTouchpadY = y;
+
+            // Apply motion vector to touchpad
             relX *= mMousePrescale;
             relY *= mMousePrescale;
             if(event.getPointerCount() < 2) {
@@ -69,13 +77,9 @@ public class AndroidPointerCapture implements ViewTreeObserver.OnWindowFocusChan
                 mScroller.performScroll(relX, relY);
             }
         } else {
-            // OTG mouse input
-            relX = event.getX() - event.getXPrecision();
-            relY = event.getY() - event.getYPrecision();
-
-            // Update cursor position and send to bridge
-            CallbackBridge.mouseX += (relX * mScaleFactor);
-            CallbackBridge.mouseY += (relY * mScaleFactor);
+            // Mouse input (OTG mouse)
+            CallbackBridge.mouseX += (x * mScaleFactor);
+            CallbackBridge.mouseY += (y * mScaleFactor);
             CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
         }
 
