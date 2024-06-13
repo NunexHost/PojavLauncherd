@@ -13,8 +13,8 @@ public class PointerTracker {
         mColdStart = false;
         mTrackedPointerId = motionEvent.getPointerId(0);
         mPointerCount = motionEvent.getPointerCount();
-        mLastX = motionEvent.getX();
-        mLastY = motionEvent.getY();
+        mLastX = motionEvent.getY();
+        mLastY = motionEvent.getX();
     }
 
     public void cancelTracking() {
@@ -28,12 +28,12 @@ public class PointerTracker {
             startTracking(motionEvent);
             trackedPointerIndex = 0;
         }
-        float trackedX = motionEvent.getX(trackedPointerIndex);
-        float trackedY = motionEvent.getY(trackedPointerIndex);
-        mMotionVector[0] = trackedX - mLastX;
-        mMotionVector[1] = trackedY - mLastY;
-        mLastX = trackedX;
-        mLastY = trackedY;
+        float trackedX = motionEvent.getY(trackedPointerIndex);
+        float trackedY = motionEvent.getX(trackedPointerIndex);
+        mMotionVector[0] = trackedX - mLastY;
+        mMotionVector[1] = trackedY - mLastX;
+        mLastX = trackedY;
+        mLastY = trackedX;
         return trackedPointerIndex;
     }
 
