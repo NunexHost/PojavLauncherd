@@ -22,7 +22,7 @@ public class TapDetector {
 
     private final static int TAP_MIN_DELTA_MS = 10;
     private final static int TAP_MAX_DELTA_MS = 300;
-    private final static int TAP_SLOP_SQUARE = TAP_SLOP_SQUARE_PX; // Pre-calculate square
+    private final static int TAP_SLOP_SQUARE = (int) Math.pow(Tools.dpToPx(25), 2); // Pre-calculate square
 
     private final int mTapNumberToDetect;
     private int mCurrentTapNumber = 0;
@@ -35,33 +35,26 @@ public class TapDetector {
 
     public TapDetector(int tapNumberToDetect, int detectionMethod) {
         this.mDetectionMethod = detectionMethod;
-        this.mTapNumberToDetect = detectBothTouch() ? 2 * tapNumberToDetect : tapNumberToDetect;
+        this.mTapNumberToDetect = (detectionMethod & DETECTION_METHOD_BOTH) != 0 ? 2 * tapNumberToDetect : tapNumberToDetect;
     }
 
     public boolean onTouchEvent(MotionEvent e) {
         int eventAction = e.getActionMasked();
-        int pointerIndex = getPointerIndex(eventAction);
+        int pointerIndex = eventAction == ACTION_DOWN ? 0 : (eventAction == ACTION_POINTER_DOWN ? e.getActionIndex() : -1);
 
-        if (pointerIndex == -1 || mCurrentTapNumber == 0) {
-            return false; // Useless event or no ongoing detection
-        }
+        if (pointerIndex == -1) return false;
 
         float eventX = e.getX(pointerIndex);
         float eventY = e.getY(pointerIndex);
         long eventTime = e.getEventTime();
 
         long deltaTime = eventTime - mLastEventTime;
-        int deltaX = (int) mLastX - (int) eventX;
-        int deltaY = (int) mLastY - (int) eventY;
+        int deltaX = (int) (mLastX - eventX);
+        int deltaY = (int) (mLastY - eventY);
 
-        mLastEventTime = eventTime;
-        mLastX = eventX;
-        mLastY = eventY;
-
-        if ((deltaTime < TAP_MIN_DELTA_MS || deltaTime > TAP_MAX_DELTA_MS) ||
-                (deltaX * deltaX + deltaY * deltaY > TAP_SLOP_SQUARE)) {
-            if (mDetectionMethod == DETECTION_METHOD_BOTH && (eventAction == ACTION_UP || eventAction == ACTION_POINTER_UP)) {
-                resetTapDetectionState();
+        if ((deltaTime < TAP_MIN_DELTA_MS || deltaTime > TAP_MAX_DELTA_MS) || (deltaX * deltaX + deltaY * deltaY > TAP_SLOP_SQUARE)) {
+            if ((mDetectionMethod & DETECTION_METHOD_BOTH) != 0 && (eventAction == ACTION_UP || eventAction == ACTION_POINTER_UP)) {
+                clearTapState();
                 return false;
             } else {
                 mCurrentTapNumber = 0;
@@ -70,42 +63,25 @@ public class TapDetector {
 
         mCurrentTapNumber++;
         if (mCurrentTapNumber >= mTapNumberToDetect) {
-            resetTapDetectionState();
+            clearTapState();
             return true;
         }
+
+        mLastEventTime = eventTime;
+        mLastX = eventX;
+        mLastY = eventY;
 
         return false;
     }
 
-    private int getPointerIndex(int eventAction) {
-        if (detectDownTouch()) {
-            return eventAction == ACTION_DOWN ? 0 : e.getActionIndex();
-        } else if (detectUpTouch()) {
-            return eventAction == ACTION_UP ? 0 : e.getActionIndex();
-        }
-        return -1;
-    }
-
-    private boolean isDetectionMethod(int method) {
-        return (mDetectionMethod & method) == method;
-    }
-
-    private void resetTapDetectionState() {
+    private void clearTapState() {
         mCurrentTapNumber = 0;
         mLastEventTime = 0;
         mLastX = 9999;
         mLastY = 9999;
     }
 
-    private boolean detectDownTouch() {
-        return isDetectionMethod(DETECTION_METHOD_DOWN);
-    }
-
-    private boolean detectUpTouch() {
-        return isDetectionMethod(DETECTION_METHOD_UP);
-    }
-
-    private boolean detectBothTouch() {
-        return mDetectionMethod == DETECTION_METHOD_BOTH;
+    private boolean isDetectionMethod(int method) {
+        return (mDetectionMethod & method) != 0;
     }
 }
