@@ -13,7 +13,6 @@ public class PointerTracker {
         mColdStart = false;
         mTrackedPointerId = motionEvent.getPointerId(0);
         mPointerCount = motionEvent.getPointerCount();
-        // Swap assignments to capture initial touch position correctly
         mLastX = motionEvent.getX();
         mLastY = motionEvent.getY();
     }
@@ -25,21 +24,16 @@ public class PointerTracker {
     public int trackEvent(MotionEvent motionEvent) {
         int trackedPointerIndex = motionEvent.findPointerIndex(mTrackedPointerId);
         int pointerCount = motionEvent.getPointerCount();
-        if (trackedPointerIndex == -1 || mPointerCount != pointerCount || mColdStart) {
+        if(trackedPointerIndex == -1 || mPointerCount != pointerCount || mColdStart) {
             startTracking(motionEvent);
             trackedPointerIndex = 0;
         }
-
-        if (trackedPointerIndex != -1) {
-            float trackedX = motionEvent.getX(trackedPointerIndex);
-            float trackedY = motionEvent.getY(trackedPointerIndex);
-            mMotionVector[0] = trackedX - mLastX;
-            mMotionVector[1] = trackedY - mLastY;
-            mLastX = trackedX;
-            mLastY = trackedY;
-        } else {
-            // Handle the case where the tracked pointer is not found (optional)
-        }
+        float trackedX = motionEvent.getX(trackedPointerIndex);
+        float trackedY = motionEvent.getY(trackedPointerIndex);
+        mMotionVector[0] = trackedX - mLastX;
+        mMotionVector[1] = trackedY - mLastY;
+        mLastX = trackedX;
+        mLastY = trackedY;
         return trackedPointerIndex;
     }
 
