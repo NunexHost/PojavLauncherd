@@ -32,8 +32,8 @@ public class InGameEventProcessor implements TouchEventProcessor {
             case MotionEvent.ACTION_MOVE:
                 mTracker.trackEvent(motionEvent);
                 float[] motionVector = mTracker.getMotionVector();
-                CallbackBridge.mouseX += motionVector[0] * mSensitivity;
-                CallbackBridge.mouseY += motionVector[1] * mSensitivity;
+                CallbackBridge.mouseY += motionVector[0] * mSensitivity;
+                CallbackBridge.mouseX += motionVector[1] * mSensitivity;
                 CallbackBridge.sendCursorPos(CallbackBridge.mouseX, CallbackBridge.mouseY);
                 if(LauncherPreferences.PREF_DISABLE_GESTURES) break;
                 checkGestures();
