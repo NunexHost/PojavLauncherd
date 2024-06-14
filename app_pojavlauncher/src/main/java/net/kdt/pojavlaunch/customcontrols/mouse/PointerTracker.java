@@ -14,8 +14,8 @@ public class PointerTracker {
         mTrackedPointerId = motionEvent.getPointerId(0);
         mPointerCount = motionEvent.getPointerCount();
         // Swap assignments to capture initial touch position correctly
-        mLastX = motionEvent.getY();
-        mLastY = motionEvent.getX();
+        mLastX = motionEvent.getX();
+        mLastY = motionEvent.getY();
     }
 
     public void cancelTracking() {
